@@ -3,12 +3,14 @@
 import { useState, useEffect, Suspense } from 'react'
 import { PlayerCompare } from '@/components/compare/player-compare'
 import { TeamCompare } from '@/components/compare/team-compare'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function ComparePage() {
   useEffect(() => { document.title = 'Compare — MLB Research' }, [])
   const [mode, setMode] = useState<'players' | 'teams'>('players')
 
   return (
+    <ErrorBoundary name="Compare">
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Compare</h1>
@@ -38,5 +40,6 @@ export default function ComparePage() {
         </Suspense>
       ) : <TeamCompare />}
     </div>
+    </ErrorBoundary>
   )
 }

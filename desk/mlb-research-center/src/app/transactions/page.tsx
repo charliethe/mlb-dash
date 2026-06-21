@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
 import { RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import type { Transaction, TransactionType } from '@/types'
 import { MLB_TEAMS } from '@/lib/mlb/constants'
 import { ScrollToTop } from '@/components/ui/scroll-to-top'
@@ -85,6 +86,7 @@ export default function TransactionsPage() {
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
+    <ErrorBoundary name="Transactions">
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Transactions</h1>
@@ -184,5 +186,6 @@ export default function TransactionsPage() {
       </Card>
       <ScrollToTop />
     </div>
+    </ErrorBoundary>
   )
 }

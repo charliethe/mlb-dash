@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 import { CardSkeleton } from '@/components/ui/error-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 const LEAGUES = [
   { name: 'AL East', teams: [110, 111, 141, 139, 147] },
@@ -42,6 +43,7 @@ function TeamsContent() {
   })).filter((l) => l.teams.length > 0)
 
   return (
+    <ErrorBoundary name="Teams">
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-lg font-semibold tracking-tight">Teams</h1>
@@ -95,6 +97,7 @@ function TeamsContent() {
         ))}
       </div>
     </div>
+    </ErrorBoundary>
   )
 }
 

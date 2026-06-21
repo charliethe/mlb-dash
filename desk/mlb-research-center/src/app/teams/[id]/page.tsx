@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns'
 import type { RosterPlayer, NewsItem, Transaction, MLBGame, BattingStats, PitchingStats } from '@/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 interface TeamStandingInfo {
   wins: number
@@ -127,10 +128,12 @@ export default function TeamDetailPage() {
 
   if (!team) {
     return (
+      <ErrorBoundary name="TeamDetail">
       <div className="p-8 text-center">
         <p className="text-muted-foreground">Team not found</p>
         <Link href="/teams"><Button variant="outline" className="mt-4">Back to Teams</Button></Link>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -147,6 +150,7 @@ export default function TeamDetailPage() {
       </div>
 
       {loading ? (
+        <ErrorBoundary name="TeamDetail">
         <div className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -155,9 +159,11 @@ export default function TeamDetailPage() {
           </div>
           <Skeleton className="h-48 rounded-lg" />
         </div>
+        </ErrorBoundary>
       ) : error ? (
-        <ErrorState message="Failed to load team data" onRetry={loadData} />
+        <ErrorBoundary name="TeamDetail"><ErrorState message="Failed to load team data" onRetry={loadData} /></ErrorBoundary>
       ) : (
+        <ErrorBoundary name="TeamDetail">
         <div className="space-y-4">
           {/* Team header with color banner */}
           <Card className="overflow-hidden" style={color ? { borderLeft: `4px solid ${color}` } : undefined}>
@@ -424,6 +430,7 @@ export default function TeamDetailPage() {
             </div>
           </div>
         </div>
+        </ErrorBoundary>
       )}
     </div>
   )

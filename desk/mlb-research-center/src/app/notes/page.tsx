@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ResearchNotes } from '@/components/notes/research-notes'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 function NotesContent() {
   const params = useSearchParams()
@@ -13,8 +14,10 @@ function NotesContent() {
 
 export default function NotesPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
-      <NotesContent />
-    </Suspense>
+    <ErrorBoundary name="Notes">
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+        <NotesContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }

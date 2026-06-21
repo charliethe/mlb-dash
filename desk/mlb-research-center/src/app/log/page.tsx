@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { DailyLog } from '@/components/log/daily-log'
 import { DatePicker } from '@/components/ui/date-picker'
 import { ScrollToTop } from '@/components/ui/scroll-to-top'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function LogPage() {
   useEffect(() => { document.title = 'Daily Log — MLB Research' }, [])
@@ -12,6 +13,7 @@ export default function LogPage() {
   const [endDate, setEndDate] = useState(today)
 
   return (
+    <ErrorBoundary name="Log">
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Daily MLB Log</h1>
@@ -27,5 +29,6 @@ export default function LogPage() {
       <DailyLog startDate={startDate} endDate={endDate} />
       <ScrollToTop />
     </div>
+    </ErrorBoundary>
   )
 }

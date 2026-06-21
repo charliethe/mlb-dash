@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Save, Check, Moon, Sun } from 'lucide-react'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 function useLocalStorage<T>(key: string, initial: T): [T, (value: T) => void] {
   const [value, setValue] = useState<T>(() => {
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <ErrorBoundary name="Settings">
     <div className="space-y-4 max-w-2xl">
       <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
 
@@ -124,5 +126,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+    </ErrorBoundary>
   )
 }

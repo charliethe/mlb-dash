@@ -15,6 +15,7 @@ import { format, parseISO } from 'date-fns'
 import type { MLBPlayer, BattingStats, PitchingStats, MLBGame, NewsItem, GameLogEntry, VsSplit } from '@/types'
 import { getRecentNews } from '@/lib/supabase/client'
 import { ScrollToTop } from '@/components/ui/scroll-to-top'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function PlayerDetailPage() {
   const params = useParams()
@@ -76,15 +77,17 @@ export default function PlayerDetailPage() {
     return () => { cancelled = true }
   }, [playerId])
 
-  if (loading) return <PlayerSkeleton />
+  if (loading) return <ErrorBoundary name="PlayerDetail"><PlayerSkeleton /></ErrorBoundary>
   if (!player) {
     return (
+      <ErrorBoundary name="PlayerDetail">
       <div className="p-8 text-center">
         <p className="text-muted-foreground">Player not found</p>
         <Link href="/watchlist">
           <Button variant="outline" className="mt-4">Back to Watchlist</Button>
         </Link>
       </div>
+      </ErrorBoundary>
     )
   }
 
@@ -94,6 +97,7 @@ export default function PlayerDetailPage() {
   const pitching = isPitcher && stats?.type === 'pitching' ? stats : null
 
   return (
+    <ErrorBoundary name="PlayerDetail">
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Link href="/watchlist" aria-label="Back to watchlist">
@@ -331,6 +335,7 @@ export default function PlayerDetailPage() {
       </div>
       <ScrollToTop />
     </div>
+    </ErrorBoundary>
   )
 }
 
