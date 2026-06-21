@@ -1,0 +1,12 @@
+You are fixing this local project: desk
+Path: /Users/charliekrason/Documents/desk
+
+Visible screen problem:
+The screenshot depicts an Electron app ("OpenEditor") experiencing a problem with text input within a designated path field. An error message "Shell: Restart Electron when fixed path input" points to an issue involving the application's shell and path handling, potentially needing a restart for correct functionality. The instruction suggests typing directly into the project path field and saving – which seems blocked currently due to the error.
+
+Task:
+Find the likely source of the issue, make safe code changes only, and run safe checks if available.
+Do not delete files. Do not use sudo.
+Do not touch .env, auth.json, passwords, API keys, or secrets.
+Do not install packages unless clearly necessary; if needed, explain instead of running.
+After changes, summarize what changed and what to test.

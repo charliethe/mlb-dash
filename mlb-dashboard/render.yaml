@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: sharp-index
+    runtime: docker
+    repo: https://github.com/YOUR_USER/YOUR_REPO
+    region: oregon
+    plan: free
+    envVars:
+      - key: ODDS_API_KEY
+        sync: false

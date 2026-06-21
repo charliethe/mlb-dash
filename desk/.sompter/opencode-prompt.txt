@@ -1,0 +1,12 @@
+You are fixing this local project: desk
+Path: /Users/charliekrason/Documents/desk
+
+Visible screen problem:
+The screenshot depicts a multi-monitor setup with several applications open across them. Notably, the "Sompter AI" application is displaying a welcome/setup guide dialog titled "You're Ready!". There are no immediately obvious error messages or crash indicators within the visible portions of the displayed applications; however, the visual clutter suggests potential usability issues arising from managing multiple windows and monitors simultaneously.
+
+Task:
+Find the likely source of the issue, make safe code changes only, and run safe checks if available.
+Do not delete files. Do not use sudo.
+Do not touch .env, auth.json, passwords, API keys, or secrets.
+Do not install packages unless clearly necessary; if needed, explain instead of running.
+After changes, summarize what changed and what to test.

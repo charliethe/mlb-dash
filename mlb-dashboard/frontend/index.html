@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Real-data sports betting analytics — moneyline and over/under picks for MLB, NBA, NFL, NHL.">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>The Sharp — Bet Like You Know Something</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9918;</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+  <div id="load-bar" class="load-bar"></div>
+
+  <header class="header">
+    <div class="header-content">
+      <div class="header-left">
+        <select id="sport-selector" class="sport-selector" onchange="changeSport()">
+          <option value="mlb">⚾ MLB</option>
+          <option value="nba">🏀 NBA</option>
+          <option value="nfl">🏈 NFL</option>
+          <option value="nhl">🏒 NHL</option>
+        </select>
+        <span class="header-brand">The Sharp</span>
+      </div>
+      <div class="header-center">
+        <span id="header-record" class="header-stat">--</span>
+        <span class="header-divider">|</span>
+        <span id="header-roi" class="header-stat">-- ROI</span>
+        <span class="header-divider">|</span>
+        <span id="header-model-version" class="header-stat"></span>
+        <span class="streak-msg" id="streak-msg"></span>
+        <span class="header-divider">|</span>
+        <span id="last-updated" class="header-time">--</span>
+        <span class="refresh-indicator" id="refresh-indicator"></span>
+      </div>
+      <div class="header-right">
+        <select id="refresh-interval" class="refresh-interval-select" onchange="changeRefreshInterval()">
+          <option value="30000">30s</option>
+          <option value="60000">1m</option>
+          <option value="120000" selected>2m</option>
+          <option value="300000">5m</option>
+          <option value="0">Off</option>
+        </select>
+        <button class="info-pill" onclick="toggleRules()">How This Works</button>
+        <button class="gear-btn" onclick="openConfig()" title="Settings">&#9881;</button>
+      </div>
+    </div>
+  </header>
+  <div id="stale-warning" class="stale-warning"></div>
+
+  <main class="main">
+
+    <!-- Filters bar -->
+    <div class="filters-bar">
+      <div class="filter-inline">
+        <input type="text" id="team-search" class="search-input" placeholder="Search teams..." autocomplete="off">
+      </div>
+      <div class="filter-inline">
+        <select id="bet-type-filter">
+          <option value="all">All Bets</option>
+          <option value="moneyline">Moneyline</option>
+          <option value="over_under">Over / Under</option>
+        </select>
+      </div>
+      <div class="filter-inline">
+        <input type="range" id="confidence-filter" min="0" max="1" step="0.05" value="0.5">
+        <span class="range-value" id="confidence-value">50%</span>
+      </div>
+      <div class="filter-inline">
+        <select id="sort-filter">
+          <option value="confidence">Sort: Confidence</option>
+          <option value="edge">Sort: Edge %</option>
+        </select>
+      </div>
+      <div class="filter-inline filter-checkbox">
+        <label><input type="checkbox" id="show-unresolved" checked> Pending</label>
+      </div>
+      <div class="filter-inline">
+        <select id="game-filter">
+          <option value="all">All Games</option>
+        </select>
+      </div>
+      <button class="btn-primary btn-sm" id="refresh-btn">&#10227;</button>
+    </div>
+
+    <div class="layout">
+      <section class="content">
+        <div class="tabs">
+          <button class="tab active" data-tab="games">Games</button>
+          <button class="tab" data-tab="picks">Picks</button>
+          <button class="tab" data-tab="tracking">Record</button>
+          <button class="tab" data-tab="trends">Trends</button>
+        </div>
+
+        <div id="games-view" class="tab-content active">
+          <div id="games-grid" class="games-grid">
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line skeleton-badge"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+          </div>
+        </div>
+
+        <div id="picks-view" class="tab-content">
+          <div id="picks-list" class="picks-list">
+            <div class="loading">Loading picks...</div>
+          </div>
+        </div>
+
+        <div id="tracking-view" class="tab-content">
+          <div id="tracking-content" class="picks-list">
+            <div class="loading">Loading record...</div>
+          </div>
+        </div>
+
+        <div id="trends-view" class="tab-content">
+          <div id="trends-content">
+            <div class="loading">Analyzing trends...</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar-right">
+        <div class="panel betslip-panel" id="betslip-panel">
+          <div class="panel-header" onclick="toggleBetSlipPanel()">
+            <h2>Slip</h2>
+            <span class="betslip-count" id="betslip-count"></span>
+            <span class="panel-toggle" id="betslip-toggle">−</span>
+          </div>
+          <div id="betslip-content">
+            <div class="betslip-empty">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <span>Click a pick to add it</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel trends-panel">
+          <div class="panel-header">
+            <h2>Pick Trends</h2>
+          </div>
+          <div id="pick-trends"></div>
+        </div>
+
+        <div class="panel pnl-panel">
+          <div class="panel-header">
+            <h2>P&amp;L</h2>
+          </div>
+          <canvas id="pnl-chart" class="pnl-chart" height="80"></canvas>
+          <div id="pnl-empty" class="pnl-empty">Track some picks to see your P&amp;L</div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Activity</h2>
+          </div>
+          <div id="activity-feed">
+            <div class="loading">No activity yet</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Game Detail Modal -->
+  <div id="game-detail-modal" class="modal-overlay" onclick="closeGameDetail(event)">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <div>
+          <h2 id="detail-matchup"></h2>
+          <span class="detail-venue" id="detail-venue"></span>
+        </div>
+        <button class="modal-close" onclick="closeGameDetail()">✕</button>
+      </div>
+      <div class="modal-body" id="detail-body"></div>
+    </div>
+  </div>
+
+  <!-- Rules Modal -->
+  <div id="rules-modal" class="modal-overlay" onclick="closeRules(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>How This Works</h2>
+        <button class="modal-close" onclick="closeRules()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="rule-section">
+          <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;line-height:1.6">This thing crunches numbers so you don't have to. Here's what's under the hood — no math degree required.</p>
+        </div>
+        <div class="rule-section">
+          <h3>🔍 The Brain</h3>
+          <p>Every game gets run through a model that weighs a bunch of stuff — who's hot, who's not, who's pitching, who's playing in a bandbox — and spits out a win probability for each team.</p>
+        </div>
+        <div class="rule-section">
+          <h3>📊 What It Looks At</h3>
+          <ul>
+            <li><strong>Winning percentage</strong> (half the weight) — mix of actual record and what "should" have happened based on runs</li>
+            <li><strong>Run differential</strong> — are they blowing teams out or squeaking by?</li>
+            <li><strong>Last 10 games</strong> — how've they been playing lately?</li>
+            <li><strong>Pitcher matchup</strong> (MLB) — ERA, Ks, the whole deal</li>
+            <li><strong>Ballpark</strong> — some stadiums are launching pads, some are pitcher paradises</li>
+          </ul>
+        </div>
+        <div class="rule-section">
+          <h3>💰 The Odds</h3>
+          <ul>
+            <li>When available, we grab <strong>real lines</strong> from sportsbooks via The Odds API</li>
+            <li>When not, the model calculates its own odds with a built-in 4% vig (the bookie's cut)</li>
+            <li><strong>Edge</strong> = our win probability vs what the odds imply. If we think you've got a 60% chance but the odds say 50%, that's edge</li>
+          </ul>
+        </div>
+        <div class="rule-section">
+          <h3>🎯 Confidence</h3>
+          <ul>
+            <li><strong>HIGH (75%+)</strong> — everything lines up, model is screaming at you</li>
+            <li><strong>MED (60-74%)</strong> — decent signal, some noise</li>
+            <li><strong>LOW (&lt;60%)</strong> — ¯\_(ツ)_/¯ maybe skip this one</li>
+          </ul>
+        </div>
+        <div class="rule-section">
+          <h3>📈 Bankroll</h3>
+          <ul>
+            <li>You start with <strong>100 units</strong> (fake money, real feelings)</li>
+            <li>Each pick risks <strong>1 unit</strong> — boring but responsible</li>
+            <li>Pushes happen when the total exactly hits the line. You get your unit back and a firm handshake</li>
+          </ul>
+        </div>
+        <div class="rule-section">
+          <h3>⚾ Data</h3>
+          <ul>
+            <li><strong>MLB</strong> — official stats API (real standings, pitchers, schedules)</li>
+            <li><strong>NBA / NFL / NHL</strong> — odds only, no team stats (those APIs cost money, and we're not made of it)</li>
+            <li>Odds refresh every <strong>5 minutes</strong> because the free tier is 500 requests/month and we're not trying to burn through it in a day</li>
+          </ul>
+        </div>
+        <div class="rule-section" style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:0">
+          <p style="color:var(--text-muted);font-size:12px;font-style:italic">Built by someone who definitely should have been doing something else. Not financial advice. Actually, it's not even advice. It's a spreadsheet with feelings.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="config-modal" class="modal-overlay" onclick="closeConfig(event)">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" onclick="closeConfig()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Starting Bankroll (units)</label>
+          <input id="config-bankroll" type="number" step="1" min="1" class="form-input" value="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unit Size ($)</label>
+          <input id="config-unit-size" type="number" step="0.1" min="0.1" class="form-input" value="1">
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveConfig()">Save</button>
+          <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span id="footer-tip"></span>
+    <span class="footer-version">Sharp Index v2</span>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

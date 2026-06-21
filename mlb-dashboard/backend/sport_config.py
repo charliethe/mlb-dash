@@ -1,0 +1,38 @@
+SPORTS = {
+    "mlb": {
+        "odds_sport_key": "baseball_mlb",
+        "stats_api": "https://statsapi.mlb.com/api/v1",
+        "league_ids": "103,104",
+        "sport_id": "1",
+        "name": "MLB",
+        "logo": "⚾",
+        "has_stats": True,
+    },
+    "nba": {
+        "odds_sport_key": "basketball_nba",
+        "stats_api": None,
+        "league_ids": None,
+        "sport_id": None,
+        "name": "NBA",
+        "logo": "🏀",
+        "has_stats": False,
+    },
+    "nfl": {
+        "odds_sport_key": "americanfootball_nfl",
+        "stats_api": None,
+        "league_ids": None,
+        "sport_id": None,
+        "name": "NFL",
+        "logo": "🏈",
+        "has_stats": False,
+    },
+    "nhl": {
+        "odds_sport_key": "icehockey_nhl",
+        "stats_api": None,
+        "league_ids": None,
+        "sport_id": None,
+        "name": "NHL",
+        "logo": "🏒",
+        "has_stats": False,
+    },
+}
