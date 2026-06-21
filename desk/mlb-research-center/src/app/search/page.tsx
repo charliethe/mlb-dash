@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Search, Loader2, ArrowRight } from 'lucide-react'
 import { MLB_TEAMS, TEAM_LOGOS } from '@/lib/mlb/constants'
 import { LogoImage } from '@/components/ui/logo-image'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import Link from 'next/link'
 
@@ -110,6 +111,7 @@ function SearchContent() {
         </div>
       )}
     </div>
+      <ScrollToTop />
     </ErrorBoundary>
   )
 }

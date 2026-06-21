@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { LineupCenter } from '@/components/lineup/lineup-card'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function LineupPage() {
@@ -14,6 +15,7 @@ export default function LineupPage() {
           Confirmed batting orders, missing starters, catcher rest days, and lineup strength
         </p>
         <LineupCenter />
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   )

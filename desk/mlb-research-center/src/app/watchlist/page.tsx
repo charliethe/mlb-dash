@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { PlayerWatchlist } from '@/components/watchlist/player-watch-card'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function WatchlistPage() {
@@ -14,6 +15,7 @@ export default function WatchlistPage() {
           Track players you care about — lineup spot, injuries, call-ups, and recent stats
         </p>
         <PlayerWatchlist />
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   )

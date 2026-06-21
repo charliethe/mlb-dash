@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns'
 import type { RosterPlayer, NewsItem, Transaction, MLBGame, BattingStats, PitchingStats } from '@/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 interface TeamStandingInfo {
@@ -432,6 +433,7 @@ export default function TeamDetailPage() {
         </div>
         </ErrorBoundary>
       )}
+      <ScrollToTop />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { CardSkeleton, ErrorState } from '@/components/ui/error-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { Download } from 'lucide-react'
 
@@ -332,6 +333,7 @@ function StandingsInner() {
           ))}
         </div>
       )}
+      <ScrollToTop />
     </div>
   )
 }

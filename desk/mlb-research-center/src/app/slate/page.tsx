@@ -17,6 +17,7 @@ import { CardSkeleton, ErrorState } from '@/components/ui/error-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { DatePicker, formatDateDisplay } from '@/components/ui/date-picker'
 import { Download } from 'lucide-react'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 
 export default function SlatePage() {
   useEffect(() => { document.title = 'Slate — MLB Research' }, [])
@@ -151,6 +152,7 @@ export default function SlatePage() {
             onOpenChange={(open) => { if (!open) setSelectedGame(null) }}
           />
         )}
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   )

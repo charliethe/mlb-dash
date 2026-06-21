@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { PlayerCompare } from '@/components/compare/player-compare'
 import { TeamCompare } from '@/components/compare/team-compare'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function ComparePage() {
@@ -39,6 +40,7 @@ export default function ComparePage() {
           <PlayerCompare />
         </Suspense>
       ) : <TeamCompare />}
+      <ScrollToTop />
     </div>
     </ErrorBoundary>
   )

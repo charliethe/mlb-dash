@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   description: "All-day MLB research dashboard monitoring rosters, transactions, injuries, lineups, and news",
   manifest: "/manifest.json",
   icons: {
+    icon: "/icons/icon-192.svg",
     apple: "/icons/icon-192.svg",
   },
   other: {

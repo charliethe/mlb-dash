@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Save, Check, Moon, Sun } from 'lucide-react'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 function useLocalStorage<T>(key: string, initial: T): [T, (value: T) => void] {
@@ -126,6 +127,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+      <ScrollToTop />
     </ErrorBoundary>
   )
 }

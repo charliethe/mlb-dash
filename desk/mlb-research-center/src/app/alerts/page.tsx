@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { AlertList } from '@/components/alerts/alert-list'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function AlertsPage() {
@@ -14,6 +15,7 @@ export default function AlertsPage() {
           High: scratched starters, injuries, trades, call-ups. Medium: lineup posts, roster moves, bullpen concerns
         </p>
         <AlertList />
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   )

@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ResearchNotes } from '@/components/notes/research-notes'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 function NotesContent() {
@@ -18,6 +19,7 @@ export default function NotesPage() {
       <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
         <NotesContent />
       </Suspense>
+      <ScrollToTop />
     </ErrorBoundary>
   )
 }

@@ -8,13 +8,15 @@ const SHORTCUTS: Record<string, string> = {
   'g s': '/slate',
   'g n': '/news',
   'g r': '/roster',
-  'g t': '/standings',
+  'g t': '/transactions',
+  'g p': '/standings',
   'g l': '/lineup',
   'g w': '/watchlist',
   'g e': '/teams',
   'g o': '/log',
   'g a': '/alerts',
   'g k': '/notes',
+  'g c': '/compare',
   'g ,': '/settings',
 }
 

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 import { CardSkeleton } from '@/components/ui/error-state'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 const LEAGUES = [
@@ -97,6 +98,7 @@ function TeamsContent() {
         ))}
       </div>
     </div>
+      <ScrollToTop />
     </ErrorBoundary>
   )
 }

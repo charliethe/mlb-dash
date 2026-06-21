@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { RosterView } from '@/components/roster/roster-table'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 
 export default function RosterPage() {
@@ -14,6 +15,7 @@ export default function RosterPage() {
           Active rosters, IL placements, call-ups, and transactions — select a team below
         </p>
         <RosterView />
+        <ScrollToTop />
       </div>
     </ErrorBoundary>
   )
