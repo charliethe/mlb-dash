@@ -4,7 +4,7 @@ import { fetchStandings } from '@/lib/mlb/api'
 import StandingsClient from './client'
 
 export default async function StandingsPage() {
-  let initialData = null
+  let initialData = undefined
   try {
     initialData = await fetchStandings()
   } catch {}

@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-const CACHE_VERSION = 'mlb-rc-v2'
+const CACHE_VERSION = 'mlb-rc-v3'
 const IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|svg|webp|ico)(\?.*)?$/
 const STATIC_ASSET_PATTERN = /\/_next\/static\//
 const API_PATTERN = /^https:\/\/statsapi\.mlb\.com\//
+const PROXY_PATTERN = /^\/api\/proxy\//
 
 describe('Service Worker — URL patterns', () => {
   it('matches image URLs', () => {
@@ -28,12 +29,20 @@ describe('Service Worker — URL patterns', () => {
     expect(API_PATTERN.test('/api/news')).toBe(false)
   })
 
+  it('matches proxy API URLs', () => {
+    expect(PROXY_PATTERN.test('/api/proxy/standings')).toBe(true)
+    expect(PROXY_PATTERN.test('/api/proxy/schedule?date=2026-06-24')).toBe(true)
+    expect(PROXY_PATTERN.test('/api/news')).toBe(false)
+    expect(PROXY_PATTERN.test('https://statsapi.mlb.com/')).toBe(false)
+  })
+
   it('generates correct cache name prefix', () => {
-    expect(CACHE_VERSION).toBe('mlb-rc-v2')
-    expect(`${CACHE_VERSION}-static`).toBe('mlb-rc-v2-static')
-    expect(`${CACHE_VERSION}-api`).toBe('mlb-rc-v2-api')
-    expect(`${CACHE_VERSION}-images`).toBe('mlb-rc-v2-images')
-    expect(`${CACHE_VERSION}-assets`).toBe('mlb-rc-v2-assets')
+    expect(CACHE_VERSION).toBe('mlb-rc-v3')
+    expect(`${CACHE_VERSION}-static`).toBe('mlb-rc-v3-static')
+    expect(`${CACHE_VERSION}-api`).toBe('mlb-rc-v3-api')
+    expect(`${CACHE_VERSION}-images`).toBe('mlb-rc-v3-images')
+    expect(`${CACHE_VERSION}-assets`).toBe('mlb-rc-v3-assets')
+    expect(`${CACHE_VERSION}-nav`).toBe('mlb-rc-v3-nav')
   })
 })
 

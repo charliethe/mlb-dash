@@ -1,13 +1,15 @@
-const CACHE_VERSION = 'mlb-rc-v2'
+const CACHE_VERSION = 'mlb-rc-v3'
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const ASSET_CACHE = `${CACHE_VERSION}-assets`
 const API_CACHE = `${CACHE_VERSION}-api`
 const IMAGE_CACHE = `${CACHE_VERSION}-images`
+const NAV_CACHE = `${CACHE_VERSION}-nav`
 const STATIC_URLS = ['/', '/offline', '/manifest.json']
 
 const API_PATTERN = /^https:\/\/statsapi\.mlb\.com\//
 const IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|svg|webp|ico)(\?.*)?$/
 const STATIC_ASSET_PATTERN = /\/_next\/static\//
+const PROXY_PATTERN = /^\/api\/proxy\//
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -47,8 +49,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  if (PROXY_PATTERN.test(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(request, API_CACHE))
+    return
+  }
+
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirstWithFallback(request))
+    event.respondWith(staleWhileRevalidateNav(request))
     return
   }
 
@@ -75,6 +82,18 @@ async function staleWhileRevalidate(request, cacheName) {
     }
     return response
   }).catch(() => cached)
+  return cached || fetchPromise
+}
+
+async function staleWhileRevalidateNav(request) {
+  const cached = await caches.match(request)
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.ok) {
+      const copy = response.clone()
+      caches.open(NAV_CACHE).then((cache) => cache.put(request, copy))
+    }
+    return response
+  }).catch(() => cached || caches.match('/offline'))
   return cached || fetchPromise
 }
 
