@@ -1,17 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
+import { useDashboardWidgets } from '@/hooks/use-dashboard-widgets'
 
 import { TodaySlate, TopUpdates, WatchlistAlerts, DailyLogPreview } from '@/components/dashboard'
 import { TopPerformers, UpcomingWeek, RecentTransactionsWidget, StandingsMini, WeatherForecast, InjuryReport } from '@/components/dashboard/widgets'
+import { DashboardWidgetSettings } from '@/components/dashboard/widget-settings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart3, AlertCircle } from 'lucide-react'
+import { FreshnessIndicator } from '@/components/ui/freshness-indicator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
-import { getTodayGames, getUnreadAlerts } from '@/lib/supabase/client'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import { fetchTodayGames, fetchTransactions } from '@/lib/mlb/api'
-import { upsertGames } from '@/lib/supabase/client'
 
 export default function DashboardPage() {
   const [gamesCount, setGamesCount] = useState(0)
@@ -19,6 +20,8 @@ export default function DashboardPage() {
   const [txCount, setTxCount] = useState(0)
   const [alertCount, setAlertCount] = useState(0)
   const [error, setError] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const { isVisible } = useDashboardWidgets()
 
   useEffect(() => { document.title = 'Dashboard — MLB Research' }, [])
 
@@ -26,25 +29,22 @@ export default function DashboardPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const [alerts] = await Promise.all([getUnreadAlerts()])
-        if (!cancelled) setAlertCount(alerts.length)
-
-        let games = await getTodayGames()
-        if (games.length === 0) {
-          games = await fetchTodayGames()
-          if (games.length > 0) await upsertGames(games)
-        }
+        const [games, txs] = await Promise.all([
+          fetchTodayGames(),
+          fetchTransactions(new Date().toISOString().split('T')[0]),
+        ])
         if (!cancelled) setGamesCount(games.length)
         if (!cancelled) setLiveCount(games.filter((g) => g.status.abstractGameState === 'Live').length)
+        if (!cancelled) setTxCount(txs.length)
+        if (!cancelled) {
+          const highImp = txs.filter((tx) => ['traded', 'callUp', 'freeAgentSigning', 'ilPlacement'].includes(tx.type))
+          setAlertCount(highImp.length)
+        }
+        if (!cancelled) setLastUpdated(new Date())
       } catch (err) {
         console.error('Failed to load stats:', err)
         if (!cancelled) setError(true)
       }
-
-      try {
-        const txs = await fetchTransactions(new Date().toISOString().split('T')[0])
-        if (!cancelled) setTxCount(txs.length)
-      } catch { /* transactions fetch is optional */ }
     })()
     return () => { cancelled = true }
   }, [])
@@ -53,9 +53,13 @@ export default function DashboardPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-xs text-muted-foreground">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-        </p>
+        <div className="flex items-center gap-2">
+          <DashboardWidgetSettings />
+          <FreshnessIndicator lastUpdated={lastUpdated} />
+          <p className="text-xs text-muted-foreground">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+        </div>
       </div>
 
       <Card>
@@ -94,30 +98,61 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <ErrorBoundary name="TodaySlate"><TodaySlate /></ErrorBoundary>
+      {isVisible('TodaySlate') && isVisible('WatchlistAlerts') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            {isVisible('TodaySlate') && <ErrorBoundary name="TodaySlate"><TodaySlate /></ErrorBoundary>}
+          </div>
+          <div>
+            {isVisible('WatchlistAlerts') && <ErrorBoundary name="WatchlistAlerts"><WatchlistAlerts /></ErrorBoundary>}
+          </div>
         </div>
-        <div>
-          <ErrorBoundary name="WatchlistAlerts"><WatchlistAlerts /></ErrorBoundary>
+      )}
+      {!isVisible('TodaySlate') && isVisible('WatchlistAlerts') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2" />
+          <div>
+            <ErrorBoundary name="WatchlistAlerts"><WatchlistAlerts /></ErrorBoundary>
+          </div>
         </div>
-      </div>
+      )}
+      {isVisible('TodaySlate') && !isVisible('WatchlistAlerts') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <ErrorBoundary name="TodaySlate"><TodaySlate /></ErrorBoundary>
+          </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {isVisible('TopUpdates') && isVisible('DailyLogPreview') && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {isVisible('TopUpdates') && <ErrorBoundary name="TopUpdates"><TopUpdates /></ErrorBoundary>}
+          {isVisible('DailyLogPreview') && <ErrorBoundary name="DailyLogPreview"><DailyLogPreview /></ErrorBoundary>}
+        </div>
+      )}
+      {isVisible('TopUpdates') && !isVisible('DailyLogPreview') && (
         <ErrorBoundary name="TopUpdates"><TopUpdates /></ErrorBoundary>
+      )}
+      {!isVisible('TopUpdates') && isVisible('DailyLogPreview') && (
         <ErrorBoundary name="DailyLogPreview"><DailyLogPreview /></ErrorBoundary>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ErrorBoundary name="TopPerformers"><TopPerformers /></ErrorBoundary>
-        <ErrorBoundary name="StandingsMini"><StandingsMini /></ErrorBoundary>
-        <ErrorBoundary name="UpcomingWeek"><UpcomingWeek /></ErrorBoundary>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ErrorBoundary name="WeatherForecast"><WeatherForecast /></ErrorBoundary>
-        <ErrorBoundary name="InjuryReport"><InjuryReport /></ErrorBoundary>
-        <ErrorBoundary name="RecentTransactionsWidget"><RecentTransactionsWidget /></ErrorBoundary>
-      </div>
+      {(isVisible('TopPerformers') || isVisible('StandingsMini') || isVisible('UpcomingWeek')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {isVisible('TopPerformers') && <ErrorBoundary name="TopPerformers"><TopPerformers /></ErrorBoundary>}
+          {isVisible('StandingsMini') && <ErrorBoundary name="StandingsMini"><StandingsMini /></ErrorBoundary>}
+          {isVisible('UpcomingWeek') && <ErrorBoundary name="UpcomingWeek"><UpcomingWeek /></ErrorBoundary>}
+        </div>
+      )}
+
+      {(isVisible('WeatherForecast') || isVisible('InjuryReport') || isVisible('RecentTransactionsWidget')) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {isVisible('WeatherForecast') && <ErrorBoundary name="WeatherForecast"><WeatherForecast /></ErrorBoundary>}
+          {isVisible('InjuryReport') && <ErrorBoundary name="InjuryReport"><InjuryReport /></ErrorBoundary>}
+          {isVisible('RecentTransactionsWidget') && <ErrorBoundary name="RecentTransactionsWidget"><RecentTransactionsWidget /></ErrorBoundary>}
+        </div>
+      )}
+      <ScrollToTop />
     </div>
   )
 }

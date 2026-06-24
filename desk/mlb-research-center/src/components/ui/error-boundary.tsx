@@ -11,6 +11,7 @@ interface Props {
 
 interface State {
   hasError: boolean
+  error?: Error
 }
 
 const ERROR_31_PATTERN = /Element type is invalid|got: object with keys/
@@ -18,8 +19,8 @@ const ERROR_31_PATTERN = /Element type is invalid|got: object with keys/
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false }
 
-  static getDerivedStateFromError() {
-    return { hasError: true }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string }) {
@@ -43,6 +44,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="flex flex-col items-center justify-center p-6 text-sm text-muted-foreground">
             <AlertCircle className="h-5 w-5 text-red-400 mb-2" />
             <p>Something went wrong</p>
+            {this.state.error && (
+              <p className="text-xs text-red-400 mt-1 max-w-md text-center font-mono">{this.state.error.message || String(this.state.error)}</p>
+            )}
           </div>
         )
       )

@@ -3,9 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import type { MLBGame, Alert, NewsItem, WatchlistItem, DailyLogEntry } from '@/types'
-import { getTodayGames, getUnreadAlerts, getRecentNews, getWatchlist, getDailyLog } from '@/lib/supabase/client'
-import { fetchTodayGames } from '@/lib/mlb/api'
-import { upsertGames, insertNewsItems } from '@/lib/supabase/client'
+import { fetchTodayGames, fetchTransactions } from '@/lib/mlb/api'
 import { fetchMLBNews } from '@/lib/rss/fetcher'
 import { format, parseISO } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,10 +15,33 @@ import { LogoImage } from '@/components/ui/logo-image'
 import { GameDetailDialog } from '@/components/game/game-detail-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 
+const WATCHLIST_KEY = 'mlb-watchlist-items'
+const ALERTS_KEY = 'mlb-alerts'
+
+function getLocalWatchlist(): WatchlistItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]')
+  } catch { return [] }
+}
+
+function getLocalAlerts(): Alert[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]')
+  } catch { return [] }
+}
+
+function getTodayLog(): DailyLogEntry[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return JSON.parse(localStorage.getItem('mlb-daily-log') || '[]')
+  } catch { return [] }
+}
+
 export function TodaySlate() {
   const [games, setGames] = useState<MLBGame[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(false)
   const [selectedGame, setSelectedGame] = useState<MLBGame | null>(null)
   const hasLive = games.some((g) => g.status.abstractGameState === 'Live')
@@ -44,38 +65,13 @@ export function TodaySlate() {
     setLoading(true)
     setError(false)
     try {
-      let data = await getTodayGames()
-      if (data.length === 0) {
-        data = await fetchTodayGames()
-        if (data.length > 0) {
-          await upsertGames(data)
-        }
-      }
+      const data = await fetchTodayGames()
       setGames(data)
       setLastUpdated(new Date())
-    } catch (err) {
-      console.error('Failed to load games:', err)
+    } catch {
       setError(true)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function syncToday() {
-    setSyncing(true)
-    try {
-      const res = await fetch('/api/mlb/sync/today')
-      const data = await res.json()
-      if (data.success) {
-        const games = await fetchTodayGames()
-        await upsertGames(games)
-        setGames(games)
-        setLastUpdated(new Date())
-      }
-    } catch (err) {
-      console.error('Sync failed:', err)
-    } finally {
-      setSyncing(false)
     }
   }
 
@@ -94,12 +90,11 @@ export function TodaySlate() {
               <span className="hidden sm:inline">{format(lastUpdated, 'h:mm a')} updated</span>
             )}
             <button
-              onClick={syncToday}
-              disabled={syncing}
+              onClick={loadGames}
+              disabled={loading}
               className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-muted hover:bg-muted/70 disabled:opacity-50 transition-colors cursor-pointer"
             >
-              <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? '' : 'Sync'}
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </span>
         </CardTitle>
@@ -243,18 +238,10 @@ export function TopUpdates() {
     setLoading(true)
     setError(false)
     try {
-      const items = await getRecentNews(20)
-      const highImportance = items.filter((n) => n.importance === 'high').slice(0, 10)
-      if (highImportance.length < 5) {
-        const fetched = await fetchMLBNews()
-        await insertNewsItems(fetched)
-        setNews(fetched.filter((n) => n.importance !== 'low').slice(0, 10))
-      } else {
-        setNews(highImportance)
-      }
+      const fetched = await fetchMLBNews()
+      setNews(fetched.filter((n) => n.importance !== 'low').slice(0, 10))
       setLastUpdated(new Date())
-    } catch (err) {
-      console.error('Failed to load top news:', err)
+    } catch {
       setError(true)
     } finally {
       setLoading(false)
@@ -348,15 +335,12 @@ export function WatchlistAlerts() {
     setLoading(true)
     setError(false)
     try {
-      const [w, a] = await Promise.all([
-        getWatchlist(),
-        getUnreadAlerts(),
-      ])
+      const w = getLocalWatchlist()
       setWatchlist(w)
+      const a = getLocalAlerts()
       setAlerts(a.slice(0, 5))
       setLastUpdated(new Date())
-    } catch (err) {
-      console.error('Failed to load watchlist data:', err)
+    } catch {
       setError(true)
     } finally {
       setLoading(false)
@@ -450,7 +434,6 @@ export function WatchlistAlerts() {
 export function DailyLogPreview() {
   const [entries, setEntries] = useState<DailyLogEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [error, setError] = useState(false)
 
@@ -458,11 +441,10 @@ export function DailyLogPreview() {
     setLoading(true)
     setError(false)
     try {
-      const data = await getDailyLog()
+      const data = getTodayLog()
       setEntries(data.slice(-10))
       setLastUpdated(new Date())
-    } catch (err) {
-      console.error('Failed to load daily log:', err)
+    } catch {
       setError(true)
     } finally {
       setLoading(false)
@@ -470,26 +452,8 @@ export function DailyLogPreview() {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      await Promise.resolve()
-      if (cancelled) return
-      await loadLog()
-    })()
-    return () => { cancelled = true }
+    loadLog()
   }, [loadLog])
-
-  async function generateLog() {
-    setGenerating(true)
-    try {
-      await fetch('/api/log/generate')
-      await loadLog()
-    } catch (err) {
-      console.error('Failed to generate log:', err)
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   return (
     <Card>
@@ -501,14 +465,6 @@ export function DailyLogPreview() {
             {lastUpdated && (
               <span className="hidden sm:inline">{format(lastUpdated, 'h:mm a')} updated</span>
             )}
-            <button
-              onClick={generateLog}
-              disabled={generating}
-              className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-muted hover:bg-muted/70 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`h-3 w-3 ${generating ? 'animate-spin' : ''}`} />
-              {generating ? '' : 'Generate'}
-            </button>
           </span>
         </CardTitle>
       </CardHeader>

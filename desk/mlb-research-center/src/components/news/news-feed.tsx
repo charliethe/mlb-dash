@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import type { NewsItem, NewsCategory, NewsSource } from '@/types'
-import { getRecentNews } from '@/lib/supabase/client'
-import { fetchMLBNews } from '@/lib/rss/fetcher'
-import { insertNewsItems } from '@/lib/supabase/client'
+import type { NewsItem, NewsCategory, NewsSource, AlertImportance } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -46,6 +43,10 @@ const SOURCES: { label: string; value: NewsSource | 'all' }[] = [
 
 const PAGE_SIZE = 50
 
+function randomId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export function NewsFeed() {
   const [allNews, setAllNews] = useState<NewsItem[]>([])
   const [error, setError] = useState(false)
@@ -57,6 +58,28 @@ export function NewsFeed() {
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
   const router = useRouter()
   const pathname = usePathname()
+
+  async function fetchNews(): Promise<NewsItem[]> {
+    try {
+      const res = await fetch('/api/news?source=all', { cache: 'no-store' })
+      if (!res.ok) return []
+      const data = await res.json()
+      if (!data.success) return []
+      return (data.news || []).map((n: Record<string, unknown>) => ({
+        id: ((n as Record<string, unknown>).duplicateKey as string)?.slice(0, 12) || randomId(),
+        source: n.source as string,
+        title: n.title as string,
+        url: n.url as string,
+        category: (n.category as NewsCategory) || 'general',
+        importance: (n.importance as AlertImportance) || 'low',
+        publishedAt: (n.publishedAt as string) || new Date().toISOString(),
+        summary: (n.summary as string) || '',
+        duplicateKey: n.duplicateKey as string,
+      }))
+    } catch {
+      return []
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -86,12 +109,7 @@ export function NewsFeed() {
     setLoading(true)
     setError(false)
     try {
-      let items = await getRecentNews(100)
-      if (items.length < 20) {
-        const fetched = await fetchMLBNews()
-        await insertNewsItems(fetched)
-        items = await getRecentNews(100)
-      }
+      const items = await fetchNews()
       setAllNews(items)
     } catch (err) {
       console.error('Failed to load news:', err)
@@ -107,12 +125,7 @@ export function NewsFeed() {
       setLoading(true)
       setError(false)
       try {
-        let items = await getRecentNews(100)
-        if (items.length < 20) {
-          const fetched = await fetchMLBNews()
-          await insertNewsItems(fetched)
-          items = await getRecentNews(100)
-        }
+        const items = await fetchNews()
         if (!cancelled) setAllNews(items)
       } catch (err) {
         if (!cancelled) {

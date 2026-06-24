@@ -2,13 +2,39 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import type { ResearchNote } from '@/types'
-import { getResearchNotes, insertResearchNote, deleteResearchNote } from '@/lib/supabase/client'
+import { getResearchNotes, insertResearchNote, deleteResearchNote, getSupabase } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, FileText, Search, X } from 'lucide-react'
+import { Plus, Trash2, FileText, Search, X, Database } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
+
+const NOTES_KEY = 'mlb-research-notes'
+
+function loadLocalNotes(): ResearchNote[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]')
+    return raw.map((n: Partial<ResearchNote>) => ({
+      id: n.id || nextId(),
+      title: n.title || '',
+      content: n.content || '',
+      tags: n.tags || [],
+      teamIds: n.teamIds || [],
+      playerIds: n.playerIds || [],
+      sourceUrls: n.sourceUrls || [],
+      createdAt: n.createdAt || new Date().toISOString(),
+      date: n.date || n.createdAt || new Date().toISOString(),
+    }))
+  } catch { return [] }
+}
+
+function saveLocalNotes(notes: ResearchNote[]) {
+  try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)) } catch { /* ignore */ }
+}
+
+let noteIdCounter = Date.now()
+function nextId(): string { return `local_${++noteIdCounter}` }
 
 export function ResearchNotes({ prefillPlayerId, prefillPlayerName }: { prefillPlayerId?: number; prefillPlayerName?: string }) {
   const [notes, setNotes] = useState<ResearchNote[]>([])
@@ -20,13 +46,21 @@ export function ResearchNotes({ prefillPlayerId, prefillPlayerName }: { prefillP
   const [search, setSearch] = useState('')
   const [activeTag, setActiveTag] = useState('')
   const [saveError, setSaveError] = useState(false)
+  const [dbAvailable, setDbAvailable] = useState<boolean | null>(null)
 
   useEffect(() => { loadNotes() }, [])
 
   async function loadNotes() {
     setLoading(true)
     const data = await getResearchNotes()
-    setNotes(data)
+    if (data.length > 0) {
+      setNotes(data)
+      setDbAvailable(true)
+    } else {
+      const local = loadLocalNotes()
+      setNotes(local)
+      setDbAvailable(local.length > 0 || getSupabase() === null ? false : null)
+    }
     setLoading(false)
   }
 
@@ -34,13 +68,30 @@ export function ResearchNotes({ prefillPlayerId, prefillPlayerName }: { prefillP
     if (!title.trim()) return
     setSaveError(false)
     const tags = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
-    const result = await insertResearchNote({
+    const note: ResearchNote = {
+      id: nextId(),
       title: title.trim(),
-      content: content.trim() || undefined,
+      content: content.trim(),
       tags,
+      teamIds: prefillPlayerId ? [prefillPlayerId] : [],
       playerIds: prefillPlayerId ? [prefillPlayerId] : [],
+      sourceUrls: [],
+      createdAt: new Date().toISOString(),
+      date: new Date().toISOString(),
+    }
+    const result = await insertResearchNote({
+      title: note.title,
+      content: note.content || undefined,
+      tags: note.tags,
+      playerIds: note.playerIds,
     })
-    if (!result) { setSaveError(true); return }
+    if (result) {
+      note.id = result.id
+    } else {
+      const local = loadLocalNotes()
+      local.unshift(note)
+      saveLocalNotes(local)
+    }
     setTitle('')
     setContent('')
     setTagsInput('')
@@ -49,7 +100,11 @@ export function ResearchNotes({ prefillPlayerId, prefillPlayerName }: { prefillP
   }
 
   async function handleDelete(id: string) {
-    await deleteResearchNote(id)
+    const deleted = await deleteResearchNote(id)
+    if (!deleted) {
+      const local = loadLocalNotes().filter((n) => n.id !== id)
+      saveLocalNotes(local)
+    }
     loadNotes()
   }
 
@@ -75,6 +130,11 @@ export function ResearchNotes({ prefillPlayerId, prefillPlayerName }: { prefillP
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <h1 className="text-lg font-semibold tracking-tight mr-auto">Research Notes</h1>
+        {dbAvailable === false && (
+          <span className="text-[10px] text-amber-400 flex items-center gap-1">
+            <Database className="h-3 w-3" /> Local only
+          </span>
+        )}
         <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowForm(!showForm)}>
           <Plus className="h-3 w-3" />
           New Note

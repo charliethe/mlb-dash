@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FreshnessIndicator } from '@/components/ui/freshness-indicator'
 
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -20,6 +21,7 @@ export function LineupCenter() {
   const [selectedGame, setSelectedGame] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [boxscore, setBoxscore] = useState<Record<string, unknown> | null>(null)
   const [loadingLineup, setLoadingLineup] = useState(false)
 
@@ -32,7 +34,7 @@ export function LineupCenter() {
           data = await fetchTodayGames()
           if (data.length > 0) await upsertGames(data)
         }
-        if (!cancelled) setGames(data)
+        if (!cancelled) { setGames(data); setLastUpdated(new Date()) }
         if (data.length > 0) {
           if (!cancelled) setSelectedGame(String(data[0].gamePk))
         }
@@ -76,6 +78,7 @@ export function LineupCenter() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Lineup Center</CardTitle>
+          <FreshnessIndicator lastUpdated={lastUpdated} />
           <Select value={selectedGame} onValueChange={(v) => v && setSelectedGame(v)}>
             <SelectTrigger className="w-[220px] h-8 text-xs" aria-label="Select game">
               <SelectValue placeholder="Select game..." />

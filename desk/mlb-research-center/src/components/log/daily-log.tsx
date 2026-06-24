@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { DailyLogEntry } from '@/types'
-import { getDailyLog } from '@/lib/supabase/client'
+import type { DailyLogEntry, MLBGame, Transaction, NewsItem } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -11,14 +10,80 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Search, RefreshCw, Download } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-
-const IMPORTANCE_COLORS: Record<string, string> = {
-  high: 'border-l-red-500',
-  medium: 'border-l-amber-500',
-  low: 'border-l-muted',
-}
+import { fetchTodayGames, fetchTransactions } from '@/lib/mlb/api'
+import { getCache, setCache } from '@/lib/cache'
 
 const PAGE_SIZE = 50
+
+function gameToEntry(game: MLBGame, date: string): DailyLogEntry {
+  const isFinal = game.status.abstractGameState === 'Final'
+  const isLive = game.status.abstractGameState === 'Live'
+  const away = game.teams.away.team.abbreviation
+  const home = game.teams.home.team.abbreviation
+  let text: string
+  let importance: 'high' | 'medium' | 'low'
+  if (isFinal) {
+    text = `${away} ${game.teams.away.score ?? '-'} @ ${home} ${game.teams.home.score ?? '-'} — Final`
+    importance = 'low'
+  } else if (isLive) {
+    text = `${away} ${game.teams.away.score ?? 0} @ ${home} ${game.teams.home.score ?? 0} — ${game.status.detailedState || 'In Progress'}`
+    importance = 'medium'
+  } else {
+    text = `${away} @ ${home} — ${format(parseISO(game.gameDate), 'h:mm a')}`
+    importance = 'low'
+  }
+  return {
+    id: `game-${game.gamePk}`,
+    date,
+    category: 'gameNote',
+    text,
+    sourceUrl: undefined,
+    importance,
+    createdAt: game.gameDate,
+  }
+}
+
+function transactionToEntry(tx: Transaction): DailyLogEntry {
+  const importanceMap: Record<string, 'high' | 'medium' | 'low'> = {
+    traded: 'high',
+    callUp: 'high',
+    freeAgentSigning: 'high',
+    dfa: 'medium',
+    ilPlacement: 'high',
+    ilActivation: 'medium',
+    signed: 'medium',
+    released: 'medium',
+    optioned: 'low',
+    waiverClaim: 'medium',
+    purchase: 'low',
+    other: 'low',
+  }
+  return {
+    id: `tx-${tx.id}`,
+    date: tx.date.split('T')[0],
+    category: 'transaction',
+    text: `${tx.team.abbreviation}: ${tx.description || `${tx.player.fullName} — ${tx.type}`}`,
+    sourceUrl: undefined,
+    importance: importanceMap[tx.type] || 'low',
+    createdAt: tx.date,
+  }
+}
+
+function newsToEntry(item: NewsItem): DailyLogEntry {
+  const catMap: Record<string, DailyLogEntry['category']> = {
+    injury: 'injury', rosterMove: 'rosterMove', trade: 'trade', lineup: 'lineup',
+    pitcherChange: 'pitcherChange', callUp: 'callUp', recap: 'recap',
+  }
+  return {
+    id: `news-${item.id}`,
+    date: item.publishedAt.split('T')[0],
+    category: catMap[item.category] || 'researchNote',
+    text: item.title,
+    sourceUrl: item.url,
+    importance: item.importance,
+    createdAt: item.publishedAt,
+  }
+}
 
 export function DailyLog({ startDate, endDate }: { startDate?: string; endDate?: string }) {
   const [entries, setEntries] = useState<DailyLogEntry[]>([])
@@ -27,51 +92,54 @@ export function DailyLog({ startDate, endDate }: { startDate?: string; endDate?:
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     loadLog()
   }, [startDate, endDate])
 
   useEffect(() => {
-    let cancelled = false
-    queueMicrotask(() => {
-      if (cancelled) return
-      if (!search.trim()) {
-        setFiltered(entries)
-      } else {
-        const q = search.toLowerCase()
-        setFiltered(entries.filter((e) => e.text.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)))
-      }
-      setDisplayCount(PAGE_SIZE)
-    })
-    return () => { cancelled = true }
+    if (!search.trim()) {
+      setFiltered(entries)
+    } else {
+      const q = search.toLowerCase()
+      setFiltered(entries.filter((e) => e.text.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)))
+    }
+    setDisplayCount(PAGE_SIZE)
   }, [entries, search])
 
   async function loadLog() {
     setLoading(true)
     setError(false)
     try {
-      const data = await getDailyLog(startDate, endDate)
-      setEntries(data.toReversed())
-      setFiltered(data.toReversed())
+      const cacheKey = `daily-log-${startDate}-${endDate}`
+      const cached = getCache<DailyLogEntry[]>(cacheKey)
+      if (cached) {
+        setEntries(cached)
+        setLoading(false)
+        return
+      }
+
+      const date = startDate || new Date().toISOString().split('T')[0]
+      const [games, txs, newsRes] = await Promise.all([
+        fetchTodayGames(date),
+        fetchTransactions(date, endDate || date),
+        fetch(`/api/news${startDate ? `?date=${startDate}` : ''}`).then((r) => r.json()).catch(() => ({ news: [] })),
+      ])
+
+      const result: DailyLogEntry[] = [
+        ...games.map((g) => gameToEntry(g, date)),
+        ...txs.map(transactionToEntry),
+        ...((newsRes.news || []) as NewsItem[]).map(newsToEntry),
+      ]
+
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      setEntries(result)
+      setCache(cacheKey, result, 5)
     } catch (err) {
       console.error('Failed to load daily log:', err)
       setError(true)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function generateLog() {
-    setGenerating(true)
-    try {
-      await fetch(`/api/log/generate${startDate ? `?date=${startDate}` : ''}`)
-      await loadLog()
-    } catch (err) {
-      console.error('Failed to generate log:', err)
-    } finally {
-      setGenerating(false)
     }
   }
 
@@ -88,15 +156,21 @@ export function DailyLog({ startDate, endDate }: { startDate?: string; endDate?:
     URL.revokeObjectURL(url)
   }
 
+  const importanceColors: Record<string, string> = {
+    high: 'border-l-red-500',
+    medium: 'border-l-amber-500',
+    low: 'border-l-muted',
+  }
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-sm font-medium">Daily MLB Log</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={generateLog} disabled={generating}>
-              <RefreshCw className={`h-3 w-3 ${generating ? 'animate-spin' : ''}`} />
-              Generate
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={loadLog} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={exportLog} disabled={entries.length === 0}>
               <Download className="h-3 w-3" />
@@ -135,14 +209,7 @@ export function DailyLog({ startDate, endDate }: { startDate?: string; endDate?:
           </div>
         ) : entries.length === 0 ? (
           <div className="p-6 text-sm text-center">
-            <p className="text-muted-foreground mb-3">No entries{startDate ? ` for ${startDate}${endDate && endDate !== startDate ? ` – ${endDate}` : ''}` : ' yet today'}</p>
-            <p className="text-xs text-muted-foreground mb-4 max-w-sm mx-auto">
-              Click <strong>Generate</strong> above to auto-create entries from today&apos;s games, transactions, and news. Or wait for the research worker to populate this automatically.
-            </p>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={generateLog} disabled={generating}>
-              <RefreshCw className={`h-3 w-3 ${generating ? 'animate-spin' : ''}`} />
-              Generate Now
-            </Button>
+            <p className="text-muted-foreground">No entries for this date range</p>
           </div>
         ) : (
           <ScrollArea className="h-[600px]">
@@ -150,7 +217,7 @@ export function DailyLog({ startDate, endDate }: { startDate?: string; endDate?:
               {filtered.slice(0, displayCount).map((entry) => (
                 <div
                   key={entry.id}
-                  className={`px-4 py-2.5 border-l-2 ${IMPORTANCE_COLORS[entry.importance] || 'border-l-muted'} hover:bg-muted/30 transition-colors`}
+                  className={`px-4 py-2.5 border-l-2 ${importanceColors[entry.importance] || 'border-l-muted'} hover:bg-muted/30 transition-colors`}
                 >
                   <div className="flex items-start gap-2">
                     <span className="text-xs font-mono text-muted-foreground shrink-0 mt-0.5">

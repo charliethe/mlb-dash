@@ -9,9 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TEAM_LOGOS, MLB_TEAMS, VENUE_COORDS } from '@/lib/mlb/constants'
 import { LogoImage } from '@/components/ui/logo-image'
-import { fetchTodayGames, fetchTeamRoster, getCurrentSeason } from '@/lib/mlb/api'
+import { fetchTodayGames, fetchTeamRoster, getCurrentSeason, fetchTransactions } from '@/lib/mlb/api'
 import type { RosterPlayer } from '@/types'
-import { getRecentTransactions } from '@/lib/supabase/client'
 import type { MLBGame, Transaction } from '@/types'
 import { getCache, setCache } from '@/lib/cache'
 
@@ -573,8 +572,8 @@ export function RecentTransactionsWidget() {
   useEffect(() => {
     async function load() {
       try {
-        const items = await getRecentTransactions(10)
-        setTransactions(items)
+        const items = await fetchTransactions()
+        setTransactions(items.slice(0, 10))
       } catch (err) {
         console.error('Failed to load transactions:', err)
       } finally {

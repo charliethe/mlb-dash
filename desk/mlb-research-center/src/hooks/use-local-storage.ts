@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 
 export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => {
+    if (typeof window === 'undefined') return defaultValue
     try {
       const stored = localStorage.getItem(key)
       return stored ? JSON.parse(stored) : defaultValue
     } catch {
-      console.warn(`Failed to read ${key} from localStorage`)
       return defaultValue
     }
   })
@@ -14,7 +14,7 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T 
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value))
-    } catch { console.warn(`Failed to write ${key} to localStorage`) }
+    } catch { /* ignore */ }
   }, [key, value])
 
   return [value, setValue]

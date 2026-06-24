@@ -94,6 +94,16 @@ export interface MLBPlayer {
     abbreviation: string
   }
   stats?: PlayerStats
+  birthDate?: string
+  currentAge?: number
+  birthCity?: string
+  birthCountry?: string
+  height?: string
+  weight?: number
+  primaryNumber?: string
+  mlbDebutDate?: string
+  draftYear?: number
+  nickName?: string
 }
 
 export interface PlayerStats {
@@ -294,6 +304,7 @@ export interface PitchingStats {
   saves?: number
   holds?: number
   blownSaves?: number
+  completeGames?: number
 }
 
 export interface GameLogEntry {
@@ -328,6 +339,16 @@ export interface VsSplit {
   strikeouts?: number
 }
 
+export interface PlayerSplitsData {
+  vsLhp?: VsSplit
+  vsRhp?: VsSplit
+  home?: VsSplit
+  away?: VsSplit
+  day?: VsSplit
+  night?: VsSplit
+  months?: Record<string, VsSplit>
+}
+
 export type RosterStatus =
   | 'active'
   | 'il'
@@ -341,3 +362,25 @@ export type RosterStatus =
   | 'bereavement'
   | 'minors'
   | 'dfa'
+
+export interface StatLeaderEntry {
+  rank: number
+  value: number
+  playerId: number
+  playerName: string
+  teamId: number
+  teamAbbreviation: string
+}
+
+export interface AwardRecipient {
+  awardId: string
+  awardName: string
+  date: string
+  season: string
+  playerId: number
+  playerName: string
+  teamId: number
+  teamName: string
+  teamAbbreviation: string
+  votes: number
+}

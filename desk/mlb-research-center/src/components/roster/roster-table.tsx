@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Search, Download, ChevronDown } from 'lucide-react'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { LogoImage } from '@/components/ui/logo-image'
+import { FreshnessIndicator } from '@/components/ui/freshness-indicator'
 import { TEAM_LOGOS, TEAM_COLORS } from '@/lib/mlb/constants'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,6 +35,7 @@ export function RosterView() {
   const [roster, setRoster] = useState<RosterPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [sortKey, setSortKey] = useLocalStorage<string>('roster-sort-key', 'name')
   const [sortDir, setSortDir] = useLocalStorage<'asc' | 'desc'>('roster-sort-dir', 'asc')
   const [search, setSearch] = useState('')
@@ -57,6 +59,7 @@ export function RosterView() {
         }
       }
       setRoster(data)
+      setLastUpdated(new Date())
     } catch (err) {
       console.error('Failed to load roster:', err)
       setError(true)
@@ -219,6 +222,7 @@ export function RosterView() {
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2 flex-wrap">
           <CardTitle className="text-sm font-medium mr-auto">Roster</CardTitle>
+          <FreshnessIndicator lastUpdated={lastUpdated} loading={loading} onRefresh={loadRoster} />
           <div className="flex items-center gap-1">
             {sortOptions.map((o) => (
               <SortButton key={o.value} value={o.value} label={o.label} />

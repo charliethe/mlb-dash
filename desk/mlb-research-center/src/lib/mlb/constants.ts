@@ -149,3 +149,7 @@ export const VENUE_COORDS: Record<string, { lat: number; lon: number; name: stri
   TOR: { lat: 43.6414, lon: -79.3894, name: 'Rogers Centre' },
   WSH: { lat: 38.8728, lon: -77.0074, name: 'Nationals Park' },
 }
+
+export function playerHeadshotUrl(playerId: number, size = 120): string {
+  return `https://img.mlbstatic.com/mlb-photos/image/upload/w_${size},q_auto:best/v1/people/${playerId}/headshot/silo/current`
+}

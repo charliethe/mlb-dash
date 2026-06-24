@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useMemo } from 'react'
 
 interface ShortcutsContextType {
   open: boolean
@@ -12,7 +12,7 @@ const ShortcutsContext = createContext<ShortcutsContextType>({ open: false, setO
 export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   return (
-    <ShortcutsContext.Provider value={{ open: shortcutsOpen, setOpen: setShortcutsOpen }}>
+    <ShortcutsContext.Provider value={useMemo(() => ({ open: shortcutsOpen, setOpen: setShortcutsOpen }), [shortcutsOpen])}>
       {children}
     </ShortcutsContext.Provider>
   )

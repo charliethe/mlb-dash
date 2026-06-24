@@ -5,9 +5,11 @@ import type { MLBGame } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MapPin, Loader2 } from 'lucide-react'
+import { MapPin, Loader2, Swords } from 'lucide-react'
 import { TEAM_LOGOS } from '@/lib/mlb/constants'
 import { LogoImage } from '@/components/ui/logo-image'
+import { fetchSeasonSeries } from '@/lib/mlb/api'
+import Link from 'next/link'
 
 interface LinescoreInning {
   num: number
@@ -35,15 +37,21 @@ export function GameDetailDialog({ game, open, onOpenChange }: { game: MLBGame; 
   const [plays, setPlays] = useState<PlayByPlay[]>([])
   const [loading, setLoading] = useState(false)
   const [showAllPlays, setShowAllPlays] = useState(false)
+  const [seriesGames, setSeriesGames] = useState<MLBGame[]>([])
+  const [seriesLoading, setSeriesLoading] = useState(false)
 
   useEffect(() => {
-    if (!open) { setLinescore([]); setLinescoreTotals(null); setPlays([]); setShowAllPlays(false); return }
+    if (!open) { setLinescore([]); setLinescoreTotals(null); setPlays([]); setShowAllPlays(false); setSeriesGames([]); return }
     setLoading(true)
+    setSeriesLoading(true)
     const gamePk = game.gamePk
+    const awayId = game.teams.away.team.id
+    const homeId = game.teams.home.team.id
     Promise.all([
       fetch(`https://statsapi.mlb.com/api/v1/game/${gamePk}/linescore`).then(r => r.ok ? r.json() : null),
       fetch(`https://statsapi.mlb.com/api/v1/game/${gamePk}/playByPlay`).then(r => r.ok ? r.json() : null),
-    ]).then(([lineData, playData]) => {
+      fetchSeasonSeries(awayId, homeId),
+    ]).then(([lineData, playData, series]) => {
       if (lineData?.innings) {
         setLinescore(lineData.innings.map((i: Record<string, unknown>) => ({
           num: i.num as number,
@@ -56,7 +64,8 @@ export function GameDetailDialog({ game, open, onOpenChange }: { game: MLBGame; 
         const allPlays = playData.allPlays as PlayByPlay[]
         setPlays(allPlays.slice(-8).reverse())
       }
-    }).catch(() => {}).finally(() => setLoading(false))
+      if (series) setSeriesGames(series)
+    }).catch(() => {}).finally(() => { setLoading(false); setSeriesLoading(false) })
   }, [open, game.gamePk])
 
   const isLive = game.status.abstractGameState === 'Live'
@@ -69,6 +78,17 @@ export function GameDetailDialog({ game, open, onOpenChange }: { game: MLBGame; 
   const awayLosses = away.probablePitcher?.losses
   const homeWins = home.probablePitcher?.wins
   const homeLosses = home.probablePitcher?.losses
+
+  const seriesRecord = (() => {
+    if (seriesGames.length === 0) return null
+    let aW = 0, hW = 0
+    for (const g of seriesGames) {
+      if (g.status.abstractGameState !== 'Final' || g.teams.away.score === undefined) continue
+      if (g.teams.away.score > (g.teams.home.score ?? 0)) aW++
+      else if ((g.teams.home.score ?? 0) > g.teams.away.score) hW++
+    }
+    return { awayWins: aW, homeWins: hW, total: aW + hW }
+  })()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,6 +165,44 @@ export function GameDetailDialog({ game, open, onOpenChange }: { game: MLBGame; 
               ) : <p className="text-xs text-muted-foreground">TBD</p>}
             </div>
           </div>
+
+          {seriesLoading ? (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            </div>
+          ) : seriesRecord && seriesRecord.total > 0 ? (
+            <div className="rounded-lg bg-muted/20 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Swords className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[11px] font-medium text-muted-foreground">Season Series</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="font-mono">{away.team.abbreviation}: <span className={seriesRecord.awayWins > seriesRecord.homeWins ? 'text-green-400 font-semibold' : ''}>{seriesRecord.awayWins}</span></span>
+                <span className="text-muted-foreground">–</span>
+                <span className="font-mono">{home.team.abbreviation}: <span className={seriesRecord.homeWins > seriesRecord.awayWins ? 'text-green-400 font-semibold' : ''}>{seriesRecord.homeWins}</span></span>
+                <span className="text-muted-foreground">· {seriesRecord.total} games</span>
+                {seriesGames.filter(g => g.status.abstractGameState === 'Live').length > 0 && (
+                  <span className="text-[10px] text-green-400 font-medium ml-auto">LIVE</span>
+                )}
+              </div>
+              <div className="flex gap-1 mt-1.5">
+                {seriesGames.filter(g => g.status.abstractGameState === 'Final').slice(-7).map((g) => {
+                  const awayWon = g.teams.away.score != null && g.teams.home.score != null && g.teams.away.score > g.teams.home.score
+                  const isAway = g.teams.away.team.id === away.team.id
+                  const won = isAway ? awayWon : !awayWon
+                  return (
+                    <span
+                      key={g.gamePk}
+                      className={`w-4 h-4 rounded-sm text-[8px] flex items-center justify-center font-mono ${won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                      title={format(parseISO(g.gameDate), 'MMM d')}
+                    >
+                      {won ? 'W' : 'L'}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {loading && (
             <div className="flex items-center justify-center py-4">

@@ -12,6 +12,15 @@ import { useSidebar } from '@/components/layout/sidebar-context'
 import { useShortcutsModal } from '@/components/layout/shortcuts-context'
 import { getUnreadAlerts } from '@/lib/supabase/client'
 
+const ALERT_COUNT_KEY = 'mlb-alert-count'
+
+function readAlertCount(): number {
+  try {
+    const v = localStorage.getItem(ALERT_COUNT_KEY)
+    return v ? parseInt(v, 10) : 0
+  } catch { return 0 }
+}
+
 interface SearchResult {
   type: 'player' | 'team'
   id: number
@@ -36,6 +45,7 @@ export function TopBar() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    setAlertCount(readAlertCount())
     getUnreadAlerts().then((alerts) => setAlertCount(alerts.length)).catch(() => console.warn('Failed to fetch alert count'))
   }, [])
 
@@ -102,15 +112,15 @@ export function TopBar() {
     setSearching(true)
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`https://statsapi.mlb.com/api/v1/people/search?search=${encodeURIComponent(q)}`)
+        const res = await fetch(`/api/player-search?q=${encodeURIComponent(q)}`)
         if (!res.ok) return
         const data = await res.json()
-        const people = data.people || []
-        const playerResults: SearchResult[] = people.slice(0, 5).map((p: { id: number; fullName: string; primaryPosition?: { abbreviation: string }; currentTeam?: { abbreviation: string } }) => ({
+        const people = data.players || []
+        const playerResults: SearchResult[] = people.slice(0, 5).map((p: { id: number; fullName: string; pos: string; team: string }) => ({
           type: 'player' as const,
           id: p.id,
           label: p.fullName,
-          sublabel: `${p.primaryPosition?.abbreviation || '?'} · ${p.currentTeam?.abbreviation || 'FA'}`,
+          sublabel: `${p.pos || '?'} · ${p.team || 'FA'}`,
         }))
         setResults([...teamResults, ...playerResults])
         setShowDropdown([...teamResults, ...playerResults].length > 0)

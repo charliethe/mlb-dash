@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import type { WatchlistItem, MLBPlayer } from '@/types'
 import { getSupabase, getWatchlist } from '@/lib/supabase/client'
 import { fetchPlayerInfo } from '@/lib/mlb/api'
-import { MLB_API_BASE, TEAM_LOGOS } from '@/lib/mlb/constants'
+import { TEAM_LOGOS } from '@/lib/mlb/constants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,8 @@ import { LogoImage } from '@/components/ui/logo-image'
 import { Trash2, Search, UserPlus, Loader2, ExternalLink } from 'lucide-react'
 import { WatchlistAlerter } from '@/components/watchlist/watchlist-alerter'
 import Link from 'next/link'
+
+const WATCHLIST_KEY = 'mlb-watchlist-items'
 import {
   Dialog,
   DialogContent,
@@ -49,10 +51,15 @@ export function PlayerWatchlist() {
       try {
         const items = await getWatchlist()
         if (cancelled) return
-        setWatchlist(items)
+        if (items.length > 0) {
+          setWatchlist(items)
+        } else {
+          const local = loadLocalWatchlist()
+          if (local.length > 0) setWatchlist(local)
+        }
 
         const details = new Map<number, MLBPlayer>()
-        for (const item of items) {
+        for (const item of items.length > 0 ? items : loadLocalWatchlist()) {
           const info = await fetchPlayerInfo(item.playerId)
           if (info) details.set(item.playerId, info)
         }
@@ -61,6 +68,8 @@ export function PlayerWatchlist() {
         }
       } catch (err) {
         console.error('Failed to load watchlist:', err)
+        const local = loadLocalWatchlist()
+        if (local.length > 0 && !cancelled) setWatchlist(local)
         if (!cancelled) setError(true)
       } finally {
         if (!cancelled) setLoading(false)
@@ -68,6 +77,12 @@ export function PlayerWatchlist() {
     })()
     return () => { cancelled = true }
   }, [])
+
+  function loadLocalWatchlist(): WatchlistItem[] {
+    try {
+      return JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]')
+    } catch { return [] }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -93,24 +108,21 @@ export function PlayerWatchlist() {
     searchTimeout.current = setTimeout(async () => {
       setSearching(true)
       try {
-        const url = new URL(`${MLB_API_BASE}/people/search`)
-        url.searchParams.set('search', value.trim())
-        url.searchParams.set('sportId', '1')
-        const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+        const res = await fetch(`/api/player-search?q=${encodeURIComponent(value.trim())}`)
         const data = await res.json()
-        const people = (data.people || []) as {
+        const people = (data.players || []) as {
           id: number
           fullName: string
-          currentTeam?: { name: string; abbreviation: string }
-          primaryPosition?: { abbreviation: string }
+          team: string
+          pos: string
         }[]
         setSearchResults(
           people.slice(0, 10).map((p) => ({
             id: p.id,
             fullName: p.fullName,
-            team: p.currentTeam?.name,
-            teamAbbreviation: p.currentTeam?.abbreviation,
-            position: p.primaryPosition?.abbreviation,
+            team: undefined,
+            teamAbbreviation: p.team,
+            position: p.pos,
           }))
         )
       } catch {
@@ -139,13 +151,16 @@ export function PlayerWatchlist() {
 
       setWatchlist((prev) => {
         if (prev.some((w) => w.playerId === info.id)) return prev
-        return [...prev, {
+        const newItem: WatchlistItem = {
           id: String(info.id),
           playerId: info.id,
           playerName: info.fullName,
           teamAbbreviation: info.currentTeam?.abbreviation || undefined,
           createdAt: new Date().toISOString(),
-        }]
+        }
+        const updated = [...prev, newItem]
+        try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated)) } catch { /* ignore */ }
+        return updated
       })
       setPlayerDetails((prev) => new Map(prev).set(info.id, info))
       setAddOpen(false)
@@ -159,11 +174,24 @@ export function PlayerWatchlist() {
   }
 
   async function removePlayer(playerId: number) {
-    const supabase = getSupabase()
-    if (!supabase) return
-    const { error } = await supabase.from('watchlist').delete().eq('player_id', playerId) as { error: unknown }
-    if (error) { console.warn('Failed to remove player from watchlist:', error); return }
+    try {
+      const supabase = getSupabase()
+      if (supabase) {
+        const { error } = await supabase.from('watchlist').delete().eq('player_id', playerId) as { error: unknown }
+        if (error) console.warn('Failed to remove player from watchlist:', error)
+      }
+    } catch (err) {
+      console.warn('Failed to remove player:', err)
+    }
     setWatchlist((prev) => prev.filter((w) => w.playerId !== playerId))
+    updateLocalWatchlist(playerId)
+  }
+
+  function updateLocalWatchlist(playerId: number) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]') as WatchlistItem[]
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(stored.filter((w) => w.playerId !== playerId)))
+    } catch { /* ignore */ }
   }
 
   const sortedWatchlist = useMemo(() => {

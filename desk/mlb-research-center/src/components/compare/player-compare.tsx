@@ -12,6 +12,18 @@ import { TEAM_LOGOS } from '@/lib/mlb/constants'
 import { LogoImage } from '@/components/ui/logo-image'
 import type { MLBPlayer, BattingStats, PitchingStats } from '@/types'
 
+function normPos(pos: unknown): string {
+  if (typeof pos === 'string') return pos
+  if (pos && typeof pos === 'object') return String((pos as { name?: string }).name || (pos as { abbreviation?: string }).abbreviation || 'N/A')
+  return 'N/A'
+}
+
+function normTeam(team: unknown): { id: number; name: string; abbreviation: string } | undefined {
+  if (!team || typeof team !== 'object') return undefined
+  const t = team as { id?: number; name?: string; abbreviation?: string }
+  return { id: t.id ?? 0, name: t.name || '', abbreviation: t.abbreviation || '' }
+}
+
 interface ComparePlayer {
   info: MLBPlayer
   stats: BattingStats | PitchingStats | null
@@ -57,7 +69,10 @@ export function PlayerCompare() {
         return Promise.all(infoPromises).then((infos) => {
           const loaded: ComparePlayer[] = infos
             .filter((info): info is MLBPlayer => info != null)
-            .map((info) => ({ info, stats: statsMap.get(info.id) || null }))
+            .map((info) => ({
+              info: { ...info, primaryPosition: normPos(info.primaryPosition), currentTeam: normTeam(info.currentTeam) },
+              stats: statsMap.get(info.id) || null,
+            }))
           setPlayers(loaded)
         })
       }).catch(() => {}).finally(() => setLoading(false))
@@ -86,9 +101,9 @@ export function PlayerCompare() {
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await fetch(`https://statsapi.mlb.com/api/v1/people/search?search=${encodeURIComponent(query)}`)
+        const res = await fetch(`/api/player-search?q=${encodeURIComponent(query)}`)
         const data = await res.json()
-        const people = (data.people || []).slice(0, 10)
+        const people = (data.people || [])
         setResults(people)
         setShowDropdown(people.length > 0)
       } catch {
@@ -100,7 +115,8 @@ export function PlayerCompare() {
     return () => clearTimeout(debounceRef.current)
   }, [query])
 
-  async function addPlayer(p: MLBPlayer) {
+  async function addPlayer(raw: MLBPlayer) {
+    const p = { ...raw, primaryPosition: normPos(raw.primaryPosition), currentTeam: normTeam(raw.currentTeam) }
     if (players.some((cp) => cp.info.id === p.id)) {
       setQuery('')
       setResults([])
@@ -185,7 +201,7 @@ export function PlayerCompare() {
                           </>
                         ) : p.fullName}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">{p.primaryPosition} · {p.currentTeam?.abbreviation || 'FA'}</p>
+                      <p className="text-[10px] text-muted-foreground">{normPos(p.primaryPosition)} · {p.currentTeam?.abbreviation || 'FA'}</p>
                     </div>
                   </button>
                 )
@@ -216,7 +232,7 @@ export function PlayerCompare() {
                         <X className="h-3 w-3" aria-hidden="true" />
                       </button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{p.info.primaryPosition}</p>
+                    <p className="text-[10px] text-muted-foreground">{normPos(p.info.primaryPosition)}</p>
                   </th>
                 ))}
               </tr>

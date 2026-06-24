@@ -34,7 +34,7 @@ export function TeamCompare() {
     ;(async () => {
       try {
         const allRecords = await fetchStandings()
-        if (!cancelled) setRecords(allRecords as unknown as TeamRecord[])
+        if (!cancelled) setRecords(allRecords.records.flatMap((r) => r.teamRecords) as unknown as TeamRecord[])
       } catch (err) {
         console.error('Failed to load standings:', err)
       } finally {
